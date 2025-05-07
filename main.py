@@ -12,18 +12,47 @@ current_date = '20250426'
 _current_date = date.today().strftime('%Y%m%d')
 
 
-def only_letters(s):
-    return ''.join(re.findall(r'[A-Za-z]+', s))
+# def only_letters(s):
+#     return ''.join(re.findall(r'[A-Za-z]+', s))
+#
+# ## 获取目标交易合约
+# conn_his.create_function("only_letters", 1, only_letters)
+# sql_tar_con = "SELECT contract FROM facTag WHERE tradingday = ( SELECT max( tradingday ) FROM facTag )"
+# tar_contract = pd.read_sql_query(sql_tar_con, conn_tmp)['contract'].tolist()
 
 
-## 获取目标交易合约
-conn_his.create_function("only_letters", 1, only_letters)
-sql_tar_con = "SELECT contract FROM facTag WHERE tradingday = ( SELECT max( tradingday ) FROM facTag )"
-tar_contract = pd.read_sql_query(sql_tar_con, conn_tmp)['contract'].tolist()
+def get_day_code(date):
+    """
+    获取每日主力合约代码
+    :param date:
+    :return:
+    """
+    sql = f"SELECT code FROM TraderOvk WHERE tradingday = {date}"
 
-##  获取近60天交易日序列
-sql_latest_60 = f"select * from tradeday where tradingday < {current_date} order by tradingday DESC Limit 5;"
-tradeDate = pd.read_sql_query(sql_latest_60, conn_sys)['tradingday'].tolist()
+    return {date: pd.read_sql_query(sql, conn_tmp)['code'].tolist()}
+
+
+def get_trade_day_series(current_date):
+    """
+    获取近current_date天交易日序列
+    :param current_date:
+    :return:
+    """
+    sql = f"select * from tradeday where tradingday < {current_date} order by tradingday DESC Limit 5;"
+    return pd.read_sql_query(sql, conn_his)['tradingday'].tolist()
+
+def get_target_contract(date):
+    """
+    获取每日目标交易合约
+    :return:
+    """
+    sql = f"SELECT contract FROM facTag WHERE tradingday = '{date}'"
+    return pd.read_sql_query(sql, conn_tmp)['contract'].tolist()
+
+
+tradeDate = get_trade_day_series(current_date)
+
+print(1 / 0)
 
 ## 获取累计复权因子
 sql_acc_factor = f"SELECT tradingday,prefix,code,accfactor FROM TraderOvk WHERE tradingday = {current_date}"
@@ -33,7 +62,6 @@ contract_data = []
 tar_contract = ['rb']
 for contract in tar_contract:
     for date in tradeDate:
-
         sql = f"""
                  SELECT code,only_letters(code) contract,tradingday,timestamp,closeprice 
                  FROM "bf{date}" 
