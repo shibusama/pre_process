@@ -12,24 +12,19 @@ current_date = '20250426'
 _current_date = date.today().strftime('%Y%m%d')
 
 
-# def only_letters(s):
-#     return ''.join(re.findall(r'[A-Za-z]+', s))
-#
-# ## 获取目标交易合约
-# conn_his.create_function("only_letters", 1, only_letters)
-# sql_tar_con = "SELECT contract FROM facTag WHERE tradingday = ( SELECT max( tradingday ) FROM facTag )"
-# tar_contract = pd.read_sql_query(sql_tar_con, conn_tmp)['contract'].tolist()
+def only_letters(s):
+    return ''.join(re.findall(r'[A-Za-z]+', s))
+conn_his.create_function("only_letters", 1, only_letters)
 
-
-def get_day_code(date):
+def get_target_code(date):
     """
-    获取每日主力合约代码
+    获取每日（需要交易）主力合约代码
     :param date:
     :return:
     """
-    sql = f"SELECT code FROM TraderOvk WHERE tradingday = {date}"
+    sql = f"SELECT code FROM TraderOvk WHERE tradingday = {date} AND prefix in (SELECT contract FROM facTag WHERE tradingday = {date})"
 
-    return {date: pd.read_sql_query(sql, conn_tmp)['code'].tolist()}
+    return pd.read_sql_query(sql, conn_tmp)['code'].tolist()
 
 
 def get_trade_day_series(current_date):
@@ -39,7 +34,8 @@ def get_trade_day_series(current_date):
     :return:
     """
     sql = f"select * from tradeday where tradingday < {current_date} order by tradingday DESC Limit 5;"
-    return pd.read_sql_query(sql, conn_his)['tradingday'].tolist()
+    return pd.read_sql_query(sql, conn_sys)['tradingday'].tolist()
+
 
 def get_target_contract(date):
     """
@@ -51,6 +47,18 @@ def get_target_contract(date):
 
 
 tradeDate = get_trade_day_series(current_date)
+
+for date in tradeDate:
+    target_code = get_target_code(date)
+    code_str = f"""('{"','".join(target_code)}')"""
+    sql = f"""
+             SELECT code,only_letters(code) contract,tradingday,timestamp,closeprice 
+             FROM "bf{date}" 
+             WHERE timestamp>='09:01:00' and timestamp<='14:45:00'
+             and code in {code_str}
+           """
+    data = pd.read_sql_query(sql, conn_his)
+    print(data)
 
 print(1 / 0)
 
