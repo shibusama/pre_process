@@ -65,10 +65,59 @@ tradeDate = get_trade_day_series(current_date)
 #     print(data)
 #     data.to_sql(f"bf{date}", conn_mydata, if_exists='replace', index=False)
 
-# 获取每日交易合约
-print(tradeDate[0])
-target_contract = get_target_contract(tradeDate[0])  # 要把今天需要交易的合约的历史数据找出来
-print(target_contract)
+"""
+step1:确定需要多少天的交易日序列
+step2:把当天需要交易的合约算出来
+step3:确定当前天需要交易合约的历史主力合约代码
+"""
+
+###
+# for date in tradeDate:
+#     print(date)
+target_contract = get_target_contract(tradeDate[0])
+# target_contract = ['AP']
+for contract in target_contract:
+    print(contract)
+    sql = f"SELECT tradingday,code FROM TraderOvk WHERE prefix = '{contract}' and tradingday >= {tradeDate[-1]} ORDER BY tradingday DESC"
+    df0 = pd.read_sql_query(sql, conn_tmp)
+    tradedate_code_dict = df0.set_index('tradingday')['code'].to_dict()
+    data_list = []
+    for date in tradeDate:
+        sql = f"""
+                     SELECT code,only_letters(code) contract,tradingday,timestamp,closeprice
+                     FROM "bf{date}"
+                     WHERE timestamp>='09:01:00' and timestamp<='14:45:00'
+                     and code = '{tradedate_code_dict[date]}'
+                   """
+        df = pd.read_sql_query(sql, conn_his)
+        df['tradingday'] = pd.to_datetime(df['tradingday'], format='%Y-%m-%d').dt.strftime('%Y%m%d')
+        data_list.append(df)
+    data = pd.concat(data_list)
+    data.to_sql(contract, conn_mydata, if_exists='replace', index=False)
+    # print(data)
+# print(1 / 0)
+#
+# # 获取每日交易合约
+# print(tradeDate[0])
+# print(tradeDate[-1])
+# target_contract = get_target_contract(tradeDate[0])  # 要把今天需要交易的合约的历史数据找出来
+# print(target_contract[0])
+# sql = f"SELECT tradingday,code,accfactor FROM TraderOvk WHERE prefix = 'AP' and tradingday >= {tradeDate[-1]} ORDER BY tradingday DESC"
+# df0 = pd.read_sql_query(sql, conn_tmp)
+# df0['tradingday'] = pd.to_datetime(df0['tradingday'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
+#
+# sql = f"""
+#              SELECT code,only_letters(code) contract,tradingday,timestamp,closeprice
+#              FROM "bf{tradeDate[0]}"
+#              WHERE timestamp>='09:01:00' and timestamp<='14:45:00'
+#        """
+# df = pd.read_sql_query(sql, conn_his)
+#
+# df = pd.merge(df0, df, on=['tradingday', 'code'], how='left')
+#
+# print(df)
+
+# 每个合约每日的主力合约代码找出来
 
 # print(1 / 0)
 #
