@@ -53,6 +53,7 @@ def get_target_contract_info(date):
     sql = f"SELECT prefix,code,accfactor FROM TraderOvk where prefix in {ass} and tradingday = '{date}'"
     df = pd.read_sql_query(sql, conn_tmp)
     contract_list = contract_list.merge(df, left_on='contract', right_on='prefix', how='left')
+    contract_list = contract_list[['contract', 'multiple', 'Rs', 'Rl', 'code', 'accfactor']]
     contract_list.to_sql('futureinfo', conn_dm, if_exists='replace', index=False)
 
 
