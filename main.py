@@ -9,6 +9,7 @@ def get_tradedate_list(current_date):
     sql = f"select * from tradeday where tradingday < {current_date} order by tradingday DESC Limit 10;"
     return pd.read_sql_query(sql, conn_sys)['tradingday'].tolist()
 
+
 def gen_dm_db(current_date):
     def only_letters(s):
         return ''.join(re.findall(r'[A-Za-z]+', s))
@@ -51,7 +52,7 @@ def get_target_contract_info(date):
     :return:
     """
     date = get_tradedate_list(current_date)[0]
-    sql = f"SELECT contract,slc FROM facTag WHERE tradingday = '{date}'"
+    sql = f"SELECT contract,Fac,slc FROM facTag WHERE tradingday = '{date}'"
     contract_list = pd.read_sql_query(sql, conn_tmp)
     contract_list[['Rs', 'Rl']] = contract_list['slc'].str.split('-', expand=True)
 
@@ -59,17 +60,16 @@ def get_target_contract_info(date):
     sql = f"SELECT code,multiple FROM futureinfo where code in {ass}"
     df = pd.read_sql_query(sql, conn_sys)
     contract_list = contract_list.merge(df, left_on='contract', right_on='code', how='left')
-    contract_list = contract_list[['contract', 'multiple', 'Rs', 'Rl']]
+    contract_list = contract_list[['contract', 'multiple', 'Fac', 'Rs', 'Rl']]
 
     sql = f"SELECT prefix,code,accfactor FROM TraderOvk where prefix in {ass} and tradingday = '{date}'"
     df = pd.read_sql_query(sql, conn_tmp)
     contract_list = contract_list.merge(df, left_on='contract', right_on='prefix', how='left')
-    contract_list = contract_list[['contract', 'multiple', 'Rs', 'Rl', 'code', 'accfactor']]
+    contract_list = contract_list[['contract', 'multiple', 'Fac', 'Rs', 'Rl', 'code', 'accfactor']]
     contract_list.to_sql('futureinfo', conn_dm, if_exists='replace', index=False)
 
 
 if __name__ == "__main__":
-
     # 1. 连接 SQLite 数据库
     conn_his = sqlite3.connect(his_db_path)
     conn_sys = sqlite3.connect(system_db_path)
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     conn_dm = sqlite3.connect(dm_db_path)
     current_date = '20250426'
 
-    gen_dm_db(current_date)
+    # gen_dm_db(current_date)
     get_target_contract_info(current_date)
 
     # 6. 关闭连接
